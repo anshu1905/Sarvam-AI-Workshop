@@ -14,5 +14,7 @@ voiceConfigRouter.get("/config", (_req, res) => {
     app_id: env.sarvamAppId || null,
     agent_version: env.sarvamAgentVersion || null,
     tools_configured: Boolean(env.toolSharedSecret),
+    // STT -> chat -> TTS fallback (/api/voice/turn) only needs the Model-API key.
+    speech_configured: Boolean(env.sarvamApiKey),
   });
 });

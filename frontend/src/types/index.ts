@@ -75,6 +75,7 @@ export interface VoiceConfig {
   app_id: string | null;
   agent_version: string | null;
   tools_configured: boolean;
+  speech_configured: boolean;
 }
 
 export const LOW_BATTERY_THRESHOLD = 25;

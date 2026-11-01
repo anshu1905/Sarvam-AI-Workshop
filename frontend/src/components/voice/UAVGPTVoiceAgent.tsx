@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AudioLines, Bot, Mic, MicOff, PhoneOff, Radar, Settings2, Square, Trash2, X } from "lucide-react";
 import { AgentState } from "sarvam-conv-ai-sdk/browser";
 import { useSarvamAgent, VOICE_LANGUAGES, type VoiceLanguage, type VoiceStatus } from "../../hooks/useSarvamAgent";
+import { useSarvamSpeech } from "../../hooks/useSarvamSpeech";
 
 const SUGGESTED_COMMANDS = [
   "Show me the fleet summary.",
@@ -24,7 +25,11 @@ const statusMeta: Record<VoiceStatus, { label: string; dot: string }> = {
 export function UAVGPTVoiceAgent({ onDataChanged }: { onDataChanged?: () => void }) {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<VoiceLanguage | "auto">("auto");
-  const voice = useSarvamAgent(onDataChanged);
+  const agent = useSarvamAgent(onDataChanged);
+  const speech = useSarvamSpeech(agent.config, onDataChanged);
+  // Voice Agents needs its own key + agent ids; without them, fall back to STT -> chat -> TTS on the sk_ key.
+  const speechMode = !agent.config?.configured && Boolean(agent.config?.speech_configured);
+  const voice = speechMode ? speech : agent;
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,7 +65,7 @@ export function UAVGPTVoiceAgent({ onDataChanged }: { onDataChanged?: () => void
         <div className="flex h-8 w-8 items-center justify-center rounded-md border border-sky-500/30 bg-sky-500/10 text-sky-300"><Radar size={16} /></div>
         <div className="leading-tight">
           <div className="text-sm font-semibold text-white">UAV-GPT voice assistant</div>
-          <div className="text-[11px] text-slate-400">Sarvam Voice Agents · decision support only</div>
+          <div className="text-[11px] text-slate-400">{speechMode ? "Sarvam speech APIs" : "Sarvam Voice Agents"} · decision support only</div>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <span className="flex items-center gap-1.5 rounded border border-line bg-navy-800 px-2 py-0.5 text-[11px] font-medium text-slate-300">
@@ -98,7 +103,7 @@ export function UAVGPTVoiceAgent({ onDataChanged }: { onDataChanged?: () => void
             {VOICE_LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </label>
-        <span className="text-[11px] text-slate-500">Must be enabled on the Sarvam agent</span>
+        <span className="text-[11px] text-slate-500">{speechMode ? "Agent default = auto-detect" : "Must be enabled on the Sarvam agent"}</span>
       </div>
 
       <div className="flex flex-col items-center gap-3 border-b border-line px-4 py-4">
@@ -115,11 +120,11 @@ export function UAVGPTVoiceAgent({ onDataChanged }: { onDataChanged?: () => void
           {busy ? <AudioLines size={28} className="level-pulse" /> : live ? (voice.muted ? <MicOff size={28} /> : <Mic size={28} />) : <Mic size={28} />}
         </button>
         <div className="h-5 text-xs font-medium">
-          {busy && <span className="text-amber-300">Connecting to Sarvam…</span>}
+          {busy && <span className="text-amber-300">{speechMode ? "Opening microphone…" : "Connecting to Sarvam…"}</span>}
           {listening && !voice.muted && <span className="flex items-center gap-1.5 text-emerald-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 level-pulse" />{voice.userSpeaking ? "Hearing you" : "Listening"}</span>}
           {listening && voice.muted && <span className="text-amber-300">Muted — agent hears silence</span>}
           {speaking && <span className="flex items-center gap-1.5 text-sky-300"><AudioLines size={14} />UAV-GPT is speaking</span>}
-          {live && voice.agentState === AgentState.CONNECTED && <span className="text-slate-300">Connected</span>}
+          {live && voice.agentState === AgentState.CONNECTED && <span className="text-slate-300">{speechMode ? "Thinking…" : "Connected"}</span>}
           {voice.status === "idle" && <span className="text-slate-400">Click to start — microphone activates only on click</span>}
           {voice.status === "disconnected" && <span className="text-amber-300">Session ended. Start again for a new session.</span>}
         </div>

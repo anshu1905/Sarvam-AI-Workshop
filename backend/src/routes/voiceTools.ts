@@ -12,7 +12,7 @@ import type { Alert, Delivery, Drone } from "../types";
 export const voiceToolsRouter = Router();
 voiceToolsRouter.use(requireToolSecret);
 
-const droneForVoice = (d: Drone) => ({
+export const droneForVoice = (d: Drone) => ({
   drone_id: d.drone_id,
   flight_status: d.status,
   battery_percent: d.battery_percent,
@@ -27,7 +27,7 @@ const droneForVoice = (d: Drone) => ({
   open_alert_ids: opsService.listAlerts("open").filter((a) => a.drone_id === d.drone_id).map((a) => a.alert_id),
 });
 
-const deliveryForVoice = (o: Delivery) => ({
+export const deliveryForVoice = (o: Delivery) => ({
   order_id: o.order_id,
   status: o.status,
   assigned_drone_id: o.drone_id,
@@ -39,7 +39,7 @@ const deliveryForVoice = (o: Delivery) => ({
   note: o.status_note,
 });
 
-const alertForVoice = (a: Alert) => ({
+export const alertForVoice = (a: Alert) => ({
   alert_id: a.alert_id,
   drone_id: a.drone_id,
   category: a.category,
@@ -92,15 +92,14 @@ function sendAcknowledge(res: Response, alertId: string, acknowledgedBy: string)
 }
 
 // Tool 1: get_ops_summary
-voiceToolsRouter.get("/ops-summary", (_req, res) => {
-  const summary = opsService.summary();
-  res.json({
-    ...summary,
-    low_battery_drone_ids: opsService.lowBatteryDrones().map((d) => d.drone_id),
-    outside_corridor_drone_ids: opsService.outsideCorridorDrones().map((d) => d.drone_id),
-    open_alerts_detail: opsService.listAlerts("open").map(alertForVoice),
-  });
+export const opsSummaryForVoice = () => ({
+  ...opsService.summary(),
+  low_battery_drone_ids: opsService.lowBatteryDrones().map((d) => d.drone_id),
+  outside_corridor_drone_ids: opsService.outsideCorridorDrones().map((d) => d.drone_id),
+  open_alerts_detail: opsService.listAlerts("open").map(alertForVoice),
 });
+
+voiceToolsRouter.get("/ops-summary", (_req, res) => res.json(opsSummaryForVoice()));
 
 // Tool 2: get_drone_status
 voiceToolsRouter.get("/drones", (req, res) => sendDrone(res, str(req.query.drone_id)));

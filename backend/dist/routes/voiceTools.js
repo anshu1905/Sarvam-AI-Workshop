@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.voiceToolsRouter = void 0;
+exports.opsSummaryForVoice = exports.alertForVoice = exports.deliveryForVoice = exports.droneForVoice = exports.voiceToolsRouter = void 0;
 const express_1 = require("express");
 const toolAuth_1 = require("../middleware/toolAuth");
 const opsService_1 = require("../services/opsService");
@@ -26,6 +26,7 @@ const droneForVoice = (d) => ({
     route: d.route ? `${d.route.origin.name} to ${d.route.destination.name}` : null,
     open_alert_ids: opsService_1.opsService.listAlerts("open").filter((a) => a.drone_id === d.drone_id).map((a) => a.alert_id),
 });
+exports.droneForVoice = droneForVoice;
 const deliveryForVoice = (o) => ({
     order_id: o.order_id,
     status: o.status,
@@ -37,6 +38,7 @@ const deliveryForVoice = (o) => ({
     payload: o.payload,
     note: o.status_note,
 });
+exports.deliveryForVoice = deliveryForVoice;
 const alertForVoice = (a) => ({
     alert_id: a.alert_id,
     drone_id: a.drone_id,
@@ -47,6 +49,7 @@ const alertForVoice = (a) => ({
     acknowledged: a.acknowledged,
     acknowledged_by: a.acknowledged_by,
 });
+exports.alertForVoice = alertForVoice;
 const str = (v) => (typeof v === "string" ? v.trim() : "");
 function sendDrone(res, droneId) {
     if (!droneId) {
@@ -58,7 +61,7 @@ function sendDrone(res, droneId) {
         res.status(404).json({ error: `No drone with id ${droneId}`, known_drone_ids: opsService_1.opsService.listDrones().map((d) => d.drone_id) });
         return;
     }
-    res.json({ simulated: true, ...droneForVoice(drone) });
+    res.json({ simulated: true, ...(0, exports.droneForVoice)(drone) });
 }
 function sendDelivery(res, orderId) {
     if (!orderId) {
@@ -70,7 +73,7 @@ function sendDelivery(res, orderId) {
         res.status(404).json({ error: `No delivery with order id ${orderId}` });
         return;
     }
-    res.json({ simulated: true, ...deliveryForVoice(delivery) });
+    res.json({ simulated: true, ...(0, exports.deliveryForVoice)(delivery) });
 }
 function sendAcknowledge(res, alertId, acknowledgedBy) {
     if (!alertId) {
@@ -82,18 +85,17 @@ function sendAcknowledge(res, alertId, acknowledgedBy) {
         res.status(404).json({ error: `No alert with id ${alertId}` });
         return;
     }
-    res.json({ simulated: true, result: "acknowledged", ...alertForVoice(alert) });
+    res.json({ simulated: true, result: "acknowledged", ...(0, exports.alertForVoice)(alert) });
 }
 // Tool 1: get_ops_summary
-exports.voiceToolsRouter.get("/ops-summary", (_req, res) => {
-    const summary = opsService_1.opsService.summary();
-    res.json({
-        ...summary,
-        low_battery_drone_ids: opsService_1.opsService.lowBatteryDrones().map((d) => d.drone_id),
-        outside_corridor_drone_ids: opsService_1.opsService.outsideCorridorDrones().map((d) => d.drone_id),
-        open_alerts_detail: opsService_1.opsService.listAlerts("open").map(alertForVoice),
-    });
+const opsSummaryForVoice = () => ({
+    ...opsService_1.opsService.summary(),
+    low_battery_drone_ids: opsService_1.opsService.lowBatteryDrones().map((d) => d.drone_id),
+    outside_corridor_drone_ids: opsService_1.opsService.outsideCorridorDrones().map((d) => d.drone_id),
+    open_alerts_detail: opsService_1.opsService.listAlerts("open").map(exports.alertForVoice),
 });
+exports.opsSummaryForVoice = opsSummaryForVoice;
+exports.voiceToolsRouter.get("/ops-summary", (_req, res) => res.json((0, exports.opsSummaryForVoice)()));
 // Tool 2: get_drone_status
 exports.voiceToolsRouter.get("/drones", (req, res) => sendDrone(res, str(req.query.drone_id)));
 exports.voiceToolsRouter.get("/drones/:droneId", (req, res) => sendDrone(res, String(req.params.droneId)));
@@ -104,7 +106,7 @@ exports.voiceToolsRouter.get("/deliveries/:orderId", (req, res) => sendDelivery(
 exports.voiceToolsRouter.get("/alerts", (req, res) => {
     const status = req.query.status === "acknowledged" || req.query.status === "all" ? req.query.status : "open";
     const alerts = opsService_1.opsService.listAlerts(status);
-    res.json({ simulated: true, status, count: alerts.length, alerts: alerts.map(alertForVoice) });
+    res.json({ simulated: true, status, count: alerts.length, alerts: alerts.map(exports.alertForVoice) });
 });
 // Tool 5: acknowledge_alert  (body: { alert_id?, acknowledged_by? })
 exports.voiceToolsRouter.post("/alerts/acknowledge", (req, res) => sendAcknowledge(res, str(req.body?.alert_id), str(req.body?.acknowledged_by)));
